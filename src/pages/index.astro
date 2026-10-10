@@ -1,0 +1,964 @@
+---
+import { Image } from 'astro:assets';
+import type { ImageMetadata } from 'astro';
+
+// Paste the Formspree endpoint here (see README).
+const FORM_ENDPOINT = 'https://formspree.io/f/YOUR_FORM_ID';
+const BOOK_URL = 'https://book.heygoldie.com/nailsbyaubs/checkout';
+const INSTAGRAM_URL = 'https://www.instagram.com/nailsby.aubs/';
+
+// Photos: drop files into src/assets (see README).
+const galleryModules = import.meta.glob<{ default: ImageMetadata }>(
+	'/src/assets/gallery/*.{jpg,jpeg,png,webp,JPG,JPEG,PNG,WEBP}',
+	{ eager: true },
+);
+const headshotModules = import.meta.glob<{ default: ImageMetadata }>(
+	'/src/assets/aubrey.{jpg,jpeg,png,webp,JPG,JPEG,PNG,WEBP}',
+	{ eager: true },
+);
+const logoModules = import.meta.glob<{ default: ImageMetadata }>(
+	'/src/assets/logo.{svg,png,webp,jpg}',
+	{ eager: true },
+);
+
+const photos = Object.entries(galleryModules)
+	.sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true }))
+	.map(([, mod]) => mod.default);
+const headshot = Object.values(headshotModules)[0]?.default;
+const logo = Object.values(logoModules)[0]?.default;
+
+type Tile = { src?: ImageMetadata; n: number; tone: number };
+
+function makeRow(items: ImageMetadata[], startN: number): Tile[] {
+	// Fewer than 8 photos in a row: repeat them so the loop still looks full.
+	const base = items.length ? items : [];
+	const out: Tile[] = [];
+	if (!base.length) {
+		for (let i = 0; i < 8; i++) out.push({ n: startN + i, tone: (startN + i) % 5 });
+		return out;
+	}
+	const count = Math.max(8, base.length);
+	for (let i = 0; i < count; i++) {
+		out.push({ src: base[i % base.length], n: startN + i, tone: (startN + i) % 5 });
+	}
+	return out;
+}
+
+const half = Math.ceil(photos.length / 2);
+const row1 = makeRow(photos.slice(0, half), 1);
+const row2 = makeRow(photos.length > 1 ? photos.slice(half) : photos, 9);
+
+const rows = [
+	{ tiles: row1, reverse: false },
+	{ tiles: row2, reverse: true },
+];
+---
+
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>Nails by Aubs | Nail artist in Salem, Utah</title>
+		<meta
+			name="description"
+			content="Licensed nail tech with 13 years of experience in Salem, Utah. Builder gel, hard gel, and hand-painted nail art. Book your appointment online."
+		/>
+		<meta property="og:title" content="Nails by Aubs" />
+		<meta
+			property="og:description"
+			content="Licensed nail tech with 13 years of experience. Builder gel, hard gel, and hand-painted nail art in Salem, Utah."
+		/>
+		<meta property="og:type" content="website" />
+		<meta property="og:url" content="https://nailsbyaubs.com" />
+		<meta name="theme-color" content="#F2C4CB" />
+		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+		<link rel="canonical" href="https://nailsbyaubs.com/" />
+		<link rel="preconnect" href="https://fonts.googleapis.com" />
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+		<link
+			href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Jost:wght@400;500;600&display=swap"
+			rel="stylesheet"
+		/>
+	</head>
+	<body>
+		<header class="site-header">
+			<div class="nav-inner">
+				<a href="#top" class="brand">
+					{
+						logo ? (
+							<img src={logo.src} width={logo.width} height={logo.height} alt="" class="brand-logo" />
+						) : (
+							<span class="brand-dot" aria-hidden="true" />
+						)
+					}
+					<span class="brand-name">Nails by Aubs</span>
+				</a>
+				<nav class="nav-links" aria-label="Main">
+					<a class="navlink" href="#gallery">Gallery</a>
+					<a class="navlink" href="#services">Services</a>
+					<a class="navlink" href="#about">About</a>
+					<a class="navlink" href="#policy">Policy</a>
+					<a class="navlink" href="#contact">Contact</a>
+					<a class="btn btn-sm" href={BOOK_URL}>Book now</a>
+				</nav>
+			</div>
+		</header>
+
+		<main>
+			<section id="top" class="hero">
+				<div class="hero-text">
+					<p class="eyebrow">Salem, Utah · Licensed nail tech · 13 years</p>
+					<h1>Hand-painted nails, made <em>just for you.</em></h1>
+					<p class="lede">
+						Builder gel, hard gel, and hand-painted nail art from a licensed tech with 13 years of experience.
+					</p>
+					<div class="hero-actions">
+						<a class="btn" href={BOOK_URL}>Book now</a>
+						<a class="btn btn-ghost" href="#gallery">See the work</a>
+					</div>
+					<p class="hours-note">Open Monday – Friday, 9:30 AM – 8:00 PM</p>
+				</div>
+				<div class="hero-photo">
+					<div class="frame-wrap">
+						<div class="frame-back" aria-hidden="true"></div>
+						<div class="frame-front">
+							{
+								headshot ? (
+									<Image
+										src={headshot}
+										width={680}
+										height={860}
+										alt="Aubrey, owner of Nails by Aubs"
+										loading="eager"
+										class="headshot"
+									/>
+								) : (
+									<div class="photo-placeholder">
+										<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#8a4452" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+											<path d="M4 8h3l1.5-2h7L17 8h3v11H4z" />
+											<circle cx="12" cy="13" r="3.5" />
+										</svg>
+										<span>Aubrey's photo goes here</span>
+									</div>
+								)
+							}
+						</div>
+					</div>
+				</div>
+			</section>
+
+			<section id="gallery" class="gallery">
+				<div class="container gallery-head">
+					<p class="eyebrow">Gallery</p>
+					<h2>A little look at the work</h2>
+				</div>
+				{
+					rows.map((row) => (
+						<div class="viewport">
+							<div
+								class:list={['track', { rev: row.reverse }]}
+								style={`--dur: ${row.tiles.length * 9}s`}
+							>
+								{[...row.tiles, ...row.tiles].map((tile, i) => (
+									<div
+										class={`tile t${tile.tone + 1}`}
+										aria-hidden={i >= row.tiles.length ? 'true' : undefined}
+									>
+										{tile.src ? (
+											<Image
+												src={tile.src}
+												width={460}
+												height={580}
+												alt={i >= row.tiles.length ? '' : 'Hand-painted nail design by Nails by Aubs'}
+												loading="lazy"
+											/>
+										) : (
+											<span>Photo {tile.n}</span>
+										)}
+									</div>
+								))}
+							</div>
+						</div>
+					))
+				}
+			</section>
+
+			<section id="services" class="container section">
+				<p class="eyebrow">Services</p>
+				<h2>Pick your set</h2>
+				<div class="cards">
+					<div class="service">
+						<h3>Full Design</h3>
+						<p class="meta">2 h 30 min</p>
+						<p class="price">$60 + $2–$6 per nail of art</p>
+						<p class="desc">Detailed nail art on more than 2 nails per hand.</p>
+					</div>
+					<div class="service">
+						<h3>Minimal Design</h3>
+						<p class="meta">2 h</p>
+						<p class="price">$60 + $2–$6 per nail of art</p>
+						<p class="desc">French tips, art on a few nails, or multiple colors.</p>
+					</div>
+					<div class="service">
+						<h3>Solid Color</h3>
+						<p class="meta">1 h 30 min</p>
+						<p class="price">$60</p>
+						<p class="desc">One color, no art.</p>
+					</div>
+					<div class="service">
+						<h3>Kids Manicure</h3>
+						<p class="meta">1 h 15 min</p>
+						<p class="price">$25</p>
+						<p class="desc">Ages 4–10. Cuticle work, shaping, and gel color with a simple design on up to 4 nails.</p>
+					</div>
+				</div>
+				<div class="center-cta">
+					<a class="btn" href={BOOK_URL}>Book now</a>
+				</div>
+			</section>
+
+			<section id="about" class="about">
+				<div class="about-inner">
+					<p class="eyebrow">About</p>
+					<h2>Hi, I'm Aubs</h2>
+					<p class="about-text">
+						I'm a licensed nail tech with 13 years of experience. I offer builder gel and hard gel services along with hand-painted nail art.
+					</p>
+					<p class="about-sign">Hope to see you in my chair soon!</p>
+				</div>
+			</section>
+
+			<section id="policy" class="container section">
+				<p class="eyebrow">Policy</p>
+				<h2>Cancellation policy</h2>
+				<p class="policy-intro">
+					Your appointment time is reserved just for you. A valid credit or debit card is required to book and is kept securely on file.
+				</p>
+				<div class="cards">
+					<div class="policy p1">
+						<p class="policy-label">24+ hours before</p>
+						<p class="policy-big">Free</p>
+						<p class="policy-body">Cancel or reschedule up to 24 hours before your appointment.</p>
+						<p class="policy-example">Example: for a Wednesday 10 AM appointment, cancel or reschedule by Tuesday 10 AM.</p>
+					</div>
+					<div class="policy p2">
+						<p class="policy-label">Less than 24 hours</p>
+						<p class="policy-big">50% fee</p>
+						<p class="policy-body">Less than 24 hours' notice, but before the day of your appointment.</p>
+						<p class="policy-example">Example: for a Wednesday 10 AM appointment, Tuesday 10 AM through Tuesday 11:59 PM.</p>
+					</div>
+					<div class="policy p3">
+						<p class="policy-label">Same day or no-show</p>
+						<p class="policy-big">100% fee</p>
+						<p class="policy-body">Any cancellation on the day of your appointment, or not showing up.</p>
+						<p class="policy-example">Example: for a Wednesday 10 AM appointment, anytime on Wednesday.</p>
+					</div>
+				</div>
+				<div class="policy-notes">
+					<p><strong>Late arrivals:</strong> after 15 minutes, your service may be shortened or rescheduled, and the applicable fee may apply.</p>
+					<p><strong>Booking fee:</strong> there's a $1.20 processing fee, which is discounted off your service price at the time of service.</p>
+					<p>Please cancel or reschedule using the contact form below or on Instagram so there's a clear record. Emergency exceptions are at my discretion.</p>
+					<p>By booking, you agree to this policy. Thank you for respecting my time!</p>
+				</div>
+			</section>
+
+			<section id="contact" class="contact">
+				<div class="contact-inner">
+					<div class="contact-form-col">
+						<p class="eyebrow">Contact</p>
+						<h2>Questions? Say hi.</h2>
+						<p class="contact-lede">Leave your name and number and I'll text you back.</p>
+
+						<form id="contact-form" class="form-card" action={FORM_ENDPOINT} method="POST">
+							<div>
+								<label for="f-name">Name</label>
+								<input class="field" id="f-name" name="name" type="text" autocomplete="name" placeholder="Your name" required />
+							</div>
+							<div>
+								<label for="f-phone">Phone number</label>
+								<input class="field" id="f-phone" name="phone" type="tel" autocomplete="tel" placeholder="(801) 555-0123" required />
+							</div>
+							<div>
+								<label for="f-msg">Message (optional)</label>
+								<textarea class="field" id="f-msg" name="message" rows="3" placeholder="Tell me about the set you have in mind"></textarea>
+							</div>
+							<input type="text" name="_gotcha" tabindex="-1" autocomplete="off" class="hp" aria-hidden="true" />
+							<button class="btn" type="submit" id="form-submit">Send message</button>
+							<p id="form-error" class="form-error" role="alert" hidden></p>
+						</form>
+
+						<div id="form-thanks" class="form-card thanks" hidden>
+							<p class="thanks-title" tabindex="-1">Thank you!</p>
+							<p>Your message is on its way. I'll text you back soon.</p>
+							<button class="btn btn-ghost btn-sm" type="button" id="form-again">Send another</button>
+						</div>
+					</div>
+
+					<div class="contact-info-col">
+						<div>
+							<h3>Find me</h3>
+							<p>Salem, Utah 84653</p>
+						</div>
+						<div>
+							<h3>Hours</h3>
+							<p>Monday – Friday: 9:30 AM – 8:00 PM</p>
+							<p>Saturday &amp; Sunday: Closed</p>
+						</div>
+						<div>
+							<h3>Follow along</h3>
+							<a class="insta" href={INSTAGRAM_URL}>@nailsby.aubs on Instagram</a>
+						</div>
+						<div>
+							<a class="btn" href={BOOK_URL}>Book now</a>
+						</div>
+					</div>
+				</div>
+			</section>
+		</main>
+
+		<footer class="site-footer">© Nails by Aubs · Salem, Utah</footer>
+
+		<script>
+			const form = document.querySelector<HTMLFormElement>('#contact-form');
+			const thanks = document.querySelector<HTMLElement>('#form-thanks');
+			const errorEl = document.querySelector<HTMLElement>('#form-error');
+			const submitBtn = document.querySelector<HTMLButtonElement>('#form-submit');
+			const againBtn = document.querySelector<HTMLButtonElement>('#form-again');
+
+			form?.addEventListener('submit', async (event) => {
+				event.preventDefault();
+				if (!form || !thanks || !errorEl || !submitBtn) return;
+				errorEl.hidden = true;
+				submitBtn.disabled = true;
+				const originalLabel = submitBtn.textContent;
+				submitBtn.textContent = 'Sending...';
+				try {
+					const response = await fetch(form.action, {
+						method: 'POST',
+						body: new FormData(form),
+						headers: { Accept: 'application/json' },
+					});
+					if (!response.ok) throw new Error('Request failed');
+					form.hidden = true;
+					form.reset();
+					thanks.hidden = false;
+					thanks.querySelector<HTMLElement>('.thanks-title')?.focus();
+				} catch {
+					errorEl.textContent =
+						"Sorry, that didn't go through. Please try again, or message me on Instagram.";
+					errorEl.hidden = false;
+				} finally {
+					submitBtn.disabled = false;
+					submitBtn.textContent = originalLabel;
+				}
+			});
+
+			againBtn?.addEventListener('click', () => {
+				if (!form || !thanks) return;
+				thanks.hidden = true;
+				form.hidden = false;
+			});
+		</script>
+
+		<style is:global>
+			:root {
+				--accent: #f2c4cb;
+				--ink: #3a2e30;
+				--muted: #6e5e61;
+				--soft: #5f5154;
+				--rose: #a8505f;
+				--wash: #fdf3f4;
+			}
+			html {
+				scroll-behavior: smooth;
+			}
+			body {
+				margin: 0;
+				background: #ffffff;
+				color: var(--ink);
+				font-family: 'Jost', sans-serif;
+				font-size: 17px;
+				line-height: 1.6;
+			}
+			a {
+				color: var(--rose);
+			}
+			a:hover {
+				color: #7d3441;
+			}
+			a:focus-visible,
+			button:focus-visible,
+			input:focus-visible,
+			textarea:focus-visible {
+				outline: 3px solid var(--rose);
+				outline-offset: 3px;
+			}
+			h1,
+			h2,
+			h3 {
+				font-family: 'Cormorant Garamond', serif;
+			}
+			section[id] {
+				scroll-margin-top: 72px;
+			}
+		</style>
+
+		<style>
+			.container {
+				max-width: 1120px;
+				margin: 0 auto;
+				padding-left: 24px;
+				padding-right: 24px;
+			}
+			.section {
+				padding-top: 0;
+				padding-bottom: 96px;
+			}
+			#policy.section {
+				padding-top: 96px;
+			}
+			.eyebrow {
+				margin: 0 0 12px;
+				font-size: 14px;
+				font-weight: 500;
+				letter-spacing: 0.16em;
+				text-transform: uppercase;
+				color: var(--rose);
+			}
+			h2 {
+				margin: 0 0 36px;
+				font-weight: 500;
+				font-size: clamp(36px, 5vw, 54px);
+				line-height: 1.1;
+			}
+
+			/* Buttons */
+			.btn {
+				display: inline-flex;
+				align-items: center;
+				justify-content: center;
+				min-height: 56px;
+				padding: 0 40px;
+				border-radius: 999px;
+				background: var(--accent);
+				color: var(--ink);
+				font-family: 'Jost', sans-serif;
+				font-weight: 600;
+				font-size: 18px;
+				letter-spacing: 0.04em;
+				text-decoration: none;
+				border: 2px solid var(--ink);
+				box-shadow: 4px 4px 0 var(--ink);
+				cursor: pointer;
+				transition:
+					transform 0.15s ease,
+					box-shadow 0.15s ease;
+			}
+			.btn:hover {
+				color: var(--ink);
+				transform: translate(-1px, -1px);
+				box-shadow: 6px 6px 0 var(--ink);
+			}
+			.btn:disabled {
+				opacity: 0.7;
+				cursor: default;
+			}
+			.btn-sm {
+				min-height: 44px;
+				padding: 0 24px;
+				font-size: 15px;
+				box-shadow: 3px 3px 0 var(--ink);
+			}
+			.btn-ghost {
+				background: #ffffff;
+				box-shadow: none;
+			}
+			.btn-ghost:hover {
+				box-shadow: none;
+				background: var(--wash);
+				transform: none;
+			}
+
+			/* Header */
+			.site-header {
+				position: sticky;
+				top: 0;
+				z-index: 10;
+				background: #ffffff;
+				border-bottom: 1px solid #f6e3e5;
+			}
+			.nav-inner {
+				max-width: 1120px;
+				margin: 0 auto;
+				padding: 10px 24px;
+				display: flex;
+				flex-wrap: wrap;
+				align-items: center;
+				justify-content: space-between;
+				gap: 8px 24px;
+			}
+			.brand {
+				display: flex;
+				align-items: center;
+				gap: 10px;
+				text-decoration: none;
+				color: var(--ink);
+				min-height: 44px;
+			}
+			.brand:hover {
+				color: var(--ink);
+			}
+			.brand-dot {
+				display: inline-block;
+				width: 34px;
+				height: 34px;
+				border-radius: 50%;
+				background: var(--accent);
+				border: 2px solid var(--ink);
+			}
+			.brand-logo {
+				height: 44px;
+				width: auto;
+			}
+			.brand-name {
+				font-family: 'Cormorant Garamond', serif;
+				font-weight: 600;
+				font-size: 28px;
+				letter-spacing: 0.01em;
+			}
+			.nav-links {
+				display: flex;
+				flex-wrap: wrap;
+				align-items: center;
+				gap: 0 24px;
+			}
+			.navlink {
+				display: inline-flex;
+				align-items: center;
+				min-height: 44px;
+				color: var(--ink);
+				text-decoration: none;
+				font-size: 15px;
+				letter-spacing: 0.04em;
+			}
+			.navlink:hover {
+				color: var(--rose);
+			}
+
+			/* Hero */
+			.hero {
+				max-width: 1120px;
+				margin: 0 auto;
+				padding: 72px 24px 88px;
+				display: flex;
+				flex-wrap: wrap;
+				align-items: center;
+				gap: 56px;
+			}
+			.hero-text {
+				flex: 1 1 420px;
+				min-width: 0;
+			}
+			.hero h1 {
+				margin: 0 0 24px;
+				font-weight: 500;
+				font-size: clamp(46px, 7vw, 80px);
+				line-height: 1.02;
+				letter-spacing: -0.01em;
+			}
+			.hero h1 em {
+				color: #b5606f;
+			}
+			.lede {
+				margin: 0 0 36px;
+				max-width: 480px;
+				font-size: 19px;
+				color: var(--soft);
+			}
+			.hero-actions {
+				display: flex;
+				flex-wrap: wrap;
+				align-items: center;
+				gap: 20px 24px;
+			}
+			.hours-note {
+				margin: 28px 0 0;
+				font-size: 15px;
+				color: var(--soft);
+			}
+			.hero-photo {
+				flex: 0 1 380px;
+				min-width: 0;
+				margin: 0 auto;
+			}
+			.frame-wrap {
+				position: relative;
+				padding: 0 18px 18px 0;
+				width: 340px;
+				max-width: 100%;
+				box-sizing: border-box;
+			}
+			.frame-back {
+				position: absolute;
+				top: 18px;
+				left: 18px;
+				right: 0;
+				bottom: 0;
+				border: 2px solid var(--accent);
+				border-radius: 170px 170px 28px 28px;
+			}
+			.frame-front {
+				position: relative;
+				height: 430px;
+				box-sizing: border-box;
+				border: 6px solid #ffffff;
+				border-radius: 170px 170px 28px 28px;
+				background: #fbeff0;
+				overflow: hidden;
+				box-shadow: 0 10px 30px rgba(168, 80, 95, 0.12);
+			}
+			.headshot {
+				width: 100%;
+				height: 100%;
+				object-fit: cover;
+				display: block;
+			}
+			.photo-placeholder {
+				height: 100%;
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+				justify-content: center;
+				gap: 12px;
+				color: #8a4452;
+				font-size: 14px;
+				letter-spacing: 0.06em;
+			}
+
+			/* Gallery */
+			.gallery {
+				padding: 24px 0 96px;
+			}
+			.gallery-head {
+				padding-bottom: 36px;
+			}
+			.gallery-head h2 {
+				margin: 0;
+			}
+			.viewport {
+				overflow: hidden;
+				width: 100%;
+			}
+			.viewport + .viewport {
+				margin-top: 16px;
+			}
+			.track {
+				display: flex;
+				width: max-content;
+				animation: slide-left var(--dur, 72s) linear infinite;
+			}
+			.track.rev {
+				animation-name: slide-right;
+			}
+			.viewport:hover .track {
+				animation-play-state: paused;
+			}
+			.tile {
+				flex: 0 0 auto;
+				width: 230px;
+				height: 290px;
+				margin-right: 16px;
+				border-radius: 22px;
+				overflow: hidden;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				font-size: 14px;
+				letter-spacing: 0.06em;
+				color: #8a4452;
+			}
+			.tile img {
+				width: 100%;
+				height: 100%;
+				object-fit: cover;
+				display: block;
+			}
+			.t1 {
+				background: #fbe9ea;
+			}
+			.t2 {
+				background: #f6d7da;
+			}
+			.t3 {
+				background: #fdf3f1;
+			}
+			.t4 {
+				background: #f2cdd3;
+			}
+			.t5 {
+				background: #f9e1e3;
+			}
+			@keyframes slide-left {
+				from {
+					transform: translateX(0);
+				}
+				to {
+					transform: translateX(-50%);
+				}
+			}
+			@keyframes slide-right {
+				from {
+					transform: translateX(-50%);
+				}
+				to {
+					transform: translateX(0);
+				}
+			}
+			@media (prefers-reduced-motion: reduce) {
+				.track {
+					animation: none;
+				}
+				.viewport {
+					overflow-x: auto;
+				}
+			}
+
+			/* Services + policy cards */
+			.cards {
+				display: flex;
+				flex-wrap: wrap;
+				gap: 20px;
+			}
+			.service {
+				flex: 1 1 240px;
+				box-sizing: border-box;
+				padding: 28px;
+				border: 1.5px solid #f0d3d7;
+				border-radius: 22px;
+			}
+			.service h3 {
+				margin: 0 0 4px;
+				font-weight: 600;
+				font-size: 28px;
+			}
+			.meta {
+				margin: 0 0 14px;
+				font-size: 14px;
+				color: var(--muted);
+			}
+			.price {
+				margin: 0 0 14px;
+				font-weight: 600;
+			}
+			.desc {
+				margin: 0;
+				font-size: 15px;
+				color: var(--soft);
+			}
+			.center-cta {
+				margin-top: 40px;
+				text-align: center;
+			}
+
+			/* About */
+			.about {
+				background: var(--wash);
+				padding: 96px 24px;
+			}
+			.about-inner {
+				max-width: 760px;
+				margin: 0 auto;
+				text-align: center;
+			}
+			.about-inner h2 {
+				margin-bottom: 28px;
+			}
+			.about-text {
+				margin: 0 0 20px;
+				font-size: 20px;
+				color: #4a3d40;
+			}
+			.about-sign {
+				margin: 0;
+				font-family: 'Cormorant Garamond', serif;
+				font-style: italic;
+				font-size: 28px;
+				color: var(--rose);
+			}
+
+			/* Policy */
+			#policy h2 {
+				margin-bottom: 20px;
+			}
+			.policy-intro {
+				margin: 0 0 36px;
+				max-width: 680px;
+				color: var(--soft);
+			}
+			.policy {
+				flex: 1 1 280px;
+				box-sizing: border-box;
+				padding: 28px;
+				border-radius: 22px;
+			}
+			.p1 {
+				background: var(--wash);
+			}
+			.p2 {
+				background: #f9e1e3;
+			}
+			.p3 {
+				background: #f2c4cb;
+			}
+			.policy-label {
+				margin: 0 0 8px;
+				font-size: 14px;
+				letter-spacing: 0.08em;
+				text-transform: uppercase;
+				color: var(--soft);
+			}
+			.policy-big {
+				margin: 0 0 12px;
+				font-family: 'Cormorant Garamond', serif;
+				font-weight: 600;
+				font-size: 40px;
+				line-height: 1;
+			}
+			.policy-body {
+				margin: 0 0 10px;
+				font-size: 15px;
+			}
+			.policy-example {
+				margin: 0;
+				font-size: 14px;
+				color: var(--soft);
+			}
+			.policy-notes {
+				margin-top: 32px;
+				max-width: 760px;
+				font-size: 15px;
+				color: var(--soft);
+			}
+			.policy-notes p {
+				margin: 0 0 10px;
+			}
+			.policy-notes strong {
+				color: var(--ink);
+			}
+
+			/* Contact */
+			.contact {
+				background: var(--wash);
+				padding: 96px 24px;
+			}
+			.contact-inner {
+				max-width: 1120px;
+				margin: 0 auto;
+				display: flex;
+				flex-wrap: wrap;
+				gap: 56px;
+			}
+			.contact-form-col {
+				flex: 1 1 420px;
+				min-width: 0;
+			}
+			.contact-form-col h2 {
+				margin-bottom: 16px;
+			}
+			.contact-lede {
+				margin: 0 0 28px;
+				color: var(--soft);
+			}
+			.form-card {
+				display: flex;
+				flex-direction: column;
+				gap: 18px;
+				background: #ffffff;
+				padding: 28px;
+				border-radius: 22px;
+			}
+			.form-card[hidden] {
+				display: none;
+			}
+			.form-card label {
+				display: block;
+				margin-bottom: 6px;
+				font-size: 15px;
+				font-weight: 500;
+			}
+			.field {
+				display: block;
+				width: 100%;
+				box-sizing: border-box;
+				min-height: 48px;
+				padding: 12px 16px;
+				border: 1.5px solid #e7c9cd;
+				border-radius: 14px;
+				background: #ffffff;
+				color: var(--ink);
+				font-family: 'Jost', sans-serif;
+				font-size: 16px;
+			}
+			.field:focus {
+				border-color: var(--rose);
+			}
+			.hp {
+				position: absolute;
+				left: -9999px;
+				width: 1px;
+				height: 1px;
+				opacity: 0;
+			}
+			.form-error {
+				margin: 0;
+				font-size: 15px;
+				color: #8f2c3c;
+			}
+			.thanks {
+				align-items: center;
+				text-align: center;
+				padding: 36px 28px;
+				color: var(--soft);
+			}
+			.thanks p {
+				margin: 0;
+			}
+			.thanks-title {
+				font-family: 'Cormorant Garamond', serif;
+				font-weight: 600;
+				font-size: 34px;
+				color: var(--ink);
+			}
+			.contact-info-col {
+				flex: 1 1 320px;
+				min-width: 0;
+				display: flex;
+				flex-direction: column;
+				gap: 28px;
+			}
+			.contact-info-col h3 {
+				margin: 0 0 6px;
+				font-weight: 600;
+				font-size: 26px;
+			}
+			.contact-info-col p {
+				margin: 0;
+				color: #4a3d40;
+			}
+			.insta {
+				display: inline-flex;
+				align-items: center;
+				min-height: 44px;
+			}
+
+			/* Footer */
+			.site-footer {
+				padding: 36px 24px;
+				text-align: center;
+				font-size: 14px;
+				color: var(--muted);
+			}
+		</style>
+	</body>
+</html>
