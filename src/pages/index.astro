@@ -1,5 +1,5 @@
 ---
-import { Image } from 'astro:assets';
+import { Image, getImage } from 'astro:assets';
 import type { ImageMetadata } from 'astro';
 
 // Paste the Formspree endpoint here (see README).
@@ -27,31 +27,42 @@ const photos = Object.entries(galleryModules)
 const headshot = Object.values(headshotModules)[0]?.default;
 const logo = Object.values(logoModules)[0]?.default;
 
-type Tile = { src?: ImageMetadata; n: number; tone: number };
+// idx is the photo's position in the full list, used by the click-to-expand viewer.
+type Tile = { src?: ImageMetadata; idx: number; n: number; tone: number };
 
-function makeRow(items: ImageMetadata[], startN: number): Tile[] {
+function makeRow(items: ImageMetadata[], startN: number, startIdx: number): Tile[] {
 	// Fewer than 8 photos in a row: repeat them so the loop still looks full.
-	const base = items.length ? items : [];
 	const out: Tile[] = [];
-	if (!base.length) {
-		for (let i = 0; i < 8; i++) out.push({ n: startN + i, tone: (startN + i) % 5 });
+	if (!items.length) {
+		for (let i = 0; i < 8; i++) out.push({ idx: -1, n: startN + i, tone: (startN + i) % 5 });
 		return out;
 	}
-	const count = Math.max(8, base.length);
+	const count = Math.max(8, items.length);
 	for (let i = 0; i < count; i++) {
-		out.push({ src: base[i % base.length], n: startN + i, tone: (startN + i) % 5 });
+		out.push({
+			src: items[i % items.length],
+			idx: startIdx + (i % items.length),
+			n: startN + i,
+			tone: (startN + i) % 5,
+		});
 	}
 	return out;
 }
 
 const half = Math.ceil(photos.length / 2);
-const row1 = makeRow(photos.slice(0, half), 1);
-const row2 = makeRow(photos.length > 1 ? photos.slice(half) : photos, 9);
+const row1 = makeRow(photos.slice(0, half), 1, 0);
+const row2 = photos.length > 1 ? makeRow(photos.slice(half), 9, half) : makeRow(photos, 9, 0);
 
 const rows = [
 	{ tiles: row1, reverse: false },
 	{ tiles: row2, reverse: true },
 ];
+
+// Larger versions for the click-to-expand viewer. They only download when a photo is opened.
+const fullImages = await Promise.all(
+	photos.map((p) => getImage({ src: p, width: Math.min(p.width, 1200), format: 'webp' })),
+);
+const lightboxItems = fullImages.map((img) => img.src);
 ---
 
 <!doctype html>
@@ -160,24 +171,35 @@ const rows = [
 								class:list={['track', { rev: row.reverse }]}
 								style={`--dur: ${row.tiles.length * 9}s`}
 							>
-								{[...row.tiles, ...row.tiles].map((tile, i) => (
-									<div
-										class={`tile t${tile.tone + 1}`}
-										aria-hidden={i >= row.tiles.length ? 'true' : undefined}
-									>
-										{tile.src ? (
-											<Image
-												src={tile.src}
-												width={460}
-												height={580}
-												alt={i >= row.tiles.length ? '' : 'Hand-painted nail design by Nails by Aubs'}
-												loading="lazy"
-											/>
-										) : (
-											<span>Photo {tile.n}</span>
-										)}
-									</div>
-								))}
+								{[...row.tiles, ...row.tiles].map((tile, i) => {
+									const classes = `tile t${tile.tone + 1}`;
+									if (!tile.src) {
+										return (
+											<div class={classes}>
+												<span>Photo {tile.n}</span>
+											</div>
+										);
+									}
+									const thumb = (
+										<Image src={tile.src} width={460} height={580} alt="" loading="lazy" />
+									);
+									// The second copy only exists to make the loop seamless: mouse users can
+									// click it, but screen readers and the Tab key skip it.
+									return i >= row.tiles.length ? (
+										<div class={classes} data-index={tile.idx} aria-hidden="true">
+											{thumb}
+										</div>
+									) : (
+										<button
+											type="button"
+											class={`${classes} is-photo`}
+											data-index={tile.idx}
+											aria-label={`View nail design photo ${tile.idx + 1} of ${photos.length} larger`}
+										>
+											{thumb}
+										</button>
+									);
+								})}
 							</div>
 						</div>
 					))
@@ -319,6 +341,34 @@ const rows = [
 
 		<footer class="site-footer">© Nails by Aubs · Salem, Utah</footer>
 
+		{
+			photos.length > 0 && (
+				<dialog id="lightbox" class="lightbox" aria-label="Photo viewer" data-items={JSON.stringify(lightboxItems)}>
+					<div class="lb-inner">
+						<button type="button" class="lb-close" id="lb-close" aria-label="Close photo viewer">
+							<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true">
+								<path d="M6 6l12 12M18 6L6 18" />
+							</svg>
+						</button>
+						<img id="lb-img" class="lb-img" alt="" />
+						<div class="lb-controls">
+							<button type="button" class="lb-nav" id="lb-prev" aria-label="Previous photo">
+								<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+									<path d="M15 5l-7 7 7 7" />
+								</svg>
+							</button>
+							<p class="lb-count" id="lb-count" aria-live="polite"></p>
+							<button type="button" class="lb-nav" id="lb-next" aria-label="Next photo">
+								<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+									<path d="M9 5l7 7-7 7" />
+								</svg>
+							</button>
+						</div>
+					</div>
+				</dialog>
+			)
+		}
+
 		<script>
 			const form = document.querySelector<HTMLFormElement>('#contact-form');
 			const thanks = document.querySelector<HTMLElement>('#form-thanks');
@@ -359,6 +409,69 @@ const rows = [
 				thanks.hidden = true;
 				form.hidden = false;
 			});
+
+			// Click-to-expand gallery viewer
+			const dialog = document.querySelector<HTMLDialogElement>('#lightbox');
+			const lbImg = document.querySelector<HTMLImageElement>('#lb-img');
+			const lbCount = document.querySelector<HTMLElement>('#lb-count');
+
+			if (dialog && lbImg && lbCount) {
+				const items: string[] = JSON.parse(dialog.dataset.items ?? '[]');
+				let current = 0;
+
+				const show = (index: number) => {
+					current = (index + items.length) % items.length;
+					lbImg.src = items[current];
+					lbImg.alt = `Nail design by Nails by Aubs, photo ${current + 1} of ${items.length}`;
+					lbCount.textContent = `${current + 1} / ${items.length}`;
+					// Warm up the neighbors so next/previous feels instant.
+					for (const n of [current + 1, current - 1]) {
+						const preload = new Image();
+						preload.src = items[(n + items.length) % items.length];
+					}
+				};
+
+				document.querySelectorAll<HTMLElement>('.tile[data-index]').forEach((tile) => {
+					tile.addEventListener('click', () => {
+						show(Number(tile.dataset.index));
+						dialog.showModal();
+					});
+				});
+
+				document.querySelector('#lb-prev')?.addEventListener('click', () => show(current - 1));
+				document.querySelector('#lb-next')?.addEventListener('click', () => show(current + 1));
+				document.querySelector('#lb-close')?.addEventListener('click', () => dialog.close());
+
+				// Click the dark area around the photo to close.
+				dialog.addEventListener('click', (event) => {
+					const target = event.target as HTMLElement;
+					if (!target.closest('.lb-img, button, .lb-count')) dialog.close();
+				});
+
+				// Esc already closes a dialog; add the arrow keys.
+				dialog.addEventListener('keydown', (event) => {
+					if (event.key === 'ArrowLeft') show(current - 1);
+					if (event.key === 'ArrowRight') show(current + 1);
+				});
+
+				// Swipe left/right on phones.
+				let touchStartX = 0;
+				dialog.addEventListener(
+					'touchstart',
+					(event) => {
+						touchStartX = event.changedTouches[0].clientX;
+					},
+					{ passive: true },
+				);
+				dialog.addEventListener(
+					'touchend',
+					(event) => {
+						const dx = event.changedTouches[0].clientX - touchStartX;
+						if (Math.abs(dx) > 50) show(current + (dx < 0 ? 1 : -1));
+					},
+					{ passive: true },
+				);
+			}
 		</script>
 
 		<style is:global>
@@ -401,6 +514,9 @@ const rows = [
 			}
 			section[id] {
 				scroll-margin-top: 72px;
+			}
+			body:has(dialog[open]) {
+				overflow: hidden;
 			}
 		</style>
 
@@ -662,7 +778,8 @@ const rows = [
 			.track.rev {
 				animation-name: slide-right;
 			}
-			.viewport:hover .track {
+			.viewport:hover .track,
+			.viewport:focus-within .track {
 				animation-play-state: paused;
 			}
 			.tile {
@@ -684,6 +801,109 @@ const rows = [
 				height: 100%;
 				object-fit: cover;
 				display: block;
+			}
+			.tile[data-index] {
+				cursor: zoom-in;
+			}
+			.tile.is-photo {
+				border: 0;
+				padding: 0;
+				font: inherit;
+			}
+			.tile.is-photo:focus-visible {
+				outline: 4px solid var(--rose);
+				outline-offset: -4px;
+			}
+			@media (prefers-reduced-motion: no-preference) {
+				.tile img {
+					transition: transform 0.3s ease;
+				}
+				.tile[data-index]:hover img {
+					transform: scale(1.04);
+				}
+			}
+
+			/* Click-to-expand viewer */
+			.lightbox {
+				border: 0;
+				padding: 0;
+				margin: 0;
+				max-width: none;
+				max-height: none;
+				width: 100%;
+				height: 100%;
+				background: transparent;
+				color: #ffffff;
+			}
+			.lightbox::backdrop {
+				background: rgba(58, 46, 48, 0.88);
+			}
+			.lightbox[open] {
+				display: flex;
+				align-items: center;
+				justify-content: center;
+			}
+			.lb-inner {
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+				gap: 16px;
+				max-width: 100%;
+				box-sizing: border-box;
+				padding: 72px 16px 24px;
+			}
+			.lb-img {
+				display: block;
+				width: auto;
+				height: auto;
+				max-width: min(100%, 880px);
+				max-height: calc(100vh - 190px);
+				max-height: calc(100dvh - 190px);
+				object-fit: contain;
+				border: 4px solid #ffffff;
+				border-radius: 18px;
+				background: #fbeff0;
+			}
+			.lb-controls {
+				display: flex;
+				align-items: center;
+				gap: 20px;
+			}
+			.lb-count {
+				margin: 0;
+				min-width: 64px;
+				text-align: center;
+				font-size: 15px;
+				letter-spacing: 0.06em;
+				color: #ffffff;
+			}
+			.lb-nav,
+			.lb-close {
+				display: inline-flex;
+				align-items: center;
+				justify-content: center;
+				width: 48px;
+				height: 48px;
+				padding: 0;
+				border: 2px solid var(--ink);
+				border-radius: 50%;
+				background: var(--accent);
+				color: var(--ink);
+				box-shadow: 3px 3px 0 var(--ink);
+				cursor: pointer;
+			}
+			.lb-nav:hover,
+			.lb-close:hover {
+				filter: brightness(0.96);
+			}
+			.lb-close {
+				position: fixed;
+				top: 16px;
+				right: 16px;
+			}
+			.lightbox button:focus-visible {
+				outline: 3px solid #ffffff;
+				outline-offset: 3px;
 			}
 			.t1 {
 				background: #fbe9ea;
